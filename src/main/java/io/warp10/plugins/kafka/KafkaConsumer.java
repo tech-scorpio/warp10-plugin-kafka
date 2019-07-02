@@ -67,7 +67,7 @@ public class KafkaConsumer {
   private MemoryWarpScriptStack stack;
   
   public KafkaConsumer(Path p) throws Exception {
-    System.out.println("INITIALIZING KafkaConsumer " + p);
+    LOG.info("INITIALIZING KafkaConsumer " + p);
     //
     // Read content of mc2 file
     //
@@ -95,7 +95,6 @@ public class KafkaConsumer {
     try {
       stack.execMulti(this.warpscript);
     } catch (Throwable t) {
-      t.printStackTrace();
       LOG.error("Caught exception while loading '" + p.getFileName() + "'.", t);
     }
 
