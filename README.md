@@ -1,16 +1,16 @@
 # warp10-plugin-kafka
 
-The Warp 10™ Kafka Plugin allows your Warp 10™ instance to consume messages from a Kafka message broker and process those messages using WarpScript™.
+The Warp 10 Kafka Plugin allows your Warp 10 instance to consume messages from a Kafka message broker and process those messages using WarpScript.
 
 # Installation
 
-## Using WarpFleet™
+## Using WarpFleet
 
 ```
 wf g -d CONFDIR -l LIBDIR io.warp10 warp10-plugin-kafka
 ```
 
-Where `CONFDIR` is the configuration directory of your Warp 10™ instance (or use `-c CONFFILE` with a release prior to 2.1), and `LIBDIR` the lib directory where the downloaded jar file should be copied.
+Where `CONFDIR` is the configuration directory of your Warp 10 instance (or use `-c CONFFILE` with a release prior to 2.1), and `LIBDIR` the lib directory where the downloaded jar file should be copied.
 
 ## From source
 
@@ -20,7 +20,7 @@ cd warp10-plugin-kafka
 ./gradlew -Duberjar shadowJar
 ```
 
-Then copy the jar (suffixed with `uberjar`) from the `build/libs` directory into the `lib` directory of your Warp 10™ deployment.
+Then copy the jar (suffixed with `uberjar`) from the `build/libs` directory into the `lib` directory of your Warp 10 deployment.
 
 # Configuration
 
@@ -28,14 +28,14 @@ The Kafka plugin will scan the directory specified in the `kafka.dir` configurat
 
 # Usage
 
-The plugin will interact with Kafka according to specification files. A specification file is a valid WarpScript™ (`.mc2`) file producing a map with the following fields:
+The plugin will interact with Kafka according to specification files. A specification file is a valid WarpScript (`.mc2`) file producing a map with the following fields:
 
 ```
 {
-  'topics' &#91; 'topic1' 'topic2' ] // List of Kafka topics to subscribe to
+  'topics' [ 'topic1' 'topic2' ] // List of Kafka topics to subscribe to
   'parallelism' 1                // Number of threads to start for processing the incoming messages. Each thread will handle a certain number of partitions.
   'config' { }                   // Map of Kafka consumer parameters
-  'macro' &lt;% %>                  // Macro to execute for each incoming message
+  'macro' <% %>                  // Macro to execute for each incoming message
   'timeout' 10000                // Polling timeout (in ms), if no message is received within this delay, the macro will be called with an empty map as input
 }
 ```
@@ -57,4 +57,4 @@ Once loaded, this specification will trigger the consumption of the specified Ka
 
 When the `timeout` has expired, instead of a message map like above, the macro is called with an empty map.
 
-The configured macro can perform any WarpScript™ operation. If you wish to store some data, you can use the [`UPDATE`](https://warp10.io/doc/UPDATE) function.
+The configured macro can perform any WarpScript operation. If you wish to store some data, you can use the [`UPDATE`](https://warp10.io/doc/UPDATE) function.

@@ -1,5 +1,5 @@
 //
-//   Copyright 2019  SenX S.A.S.
+//   Copyright 2019-2023  SenX S.A.S.
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -14,6 +14,15 @@
 //   limitations under the License.
 //
 
+buildscript {
+    repositories {
+        mavenCentral()
+        mavenLocal()
+    }
+    dependencies {
+        classpath 'io.warp10:warpfleet-gradle-plugin:0.0.3'
+    }
+}
 plugins {
     id 'com.github.johnrengelman.shadow' version '7.0.0'
     id 'net.nemerosa.versioning' version '2.14.0'
@@ -26,6 +35,8 @@ plugins {
     id 'signing'
 }
 
+
+apply plugin: 'io.warp10.warpfleet-gradle-plugin'
 project.group = 'io.warp10'
 project.description = 'Warp 10™ Kafka Plugin'
 
@@ -53,7 +64,7 @@ dependencies {
   // Insert your dependencies here
   //
   //compile group: 'GROUP', name: 'NAME', version: 'VERSION'
-  implementation 'org.apache.kafka:kafka-clients:2.2.1'
+  implementation 'org.apache.kafka:kafka-clients:2.6.3'
   //
   // The following two artifacts are needed to support the dedicated class loader
   //
@@ -61,7 +72,7 @@ dependencies {
   implementation 'log4j:log4j:1.2.17'
 
   testImplementation 'io.warp10:warpscript:+'
-  testImplementation 'junit:junit:4.12'
+  testImplementation 'junit:junit:4.4'
 }
 
 test {
