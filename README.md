@@ -40,6 +40,18 @@ The plugin will interact with Kafka according to specification files. A specific
 }
 ```
 
+With regexp:
+
+```
+{
+  'topics'  '~topic(1-9).*'      // Regexp corresponding to Kafka topics to subscribe to
+  'parallelism' 1                // Number of threads to start for processing the incoming messages. Each thread will handle a certain number of partitions.
+  'config' { }                   // Map of Kafka consumer parameters
+  'macro' <% %>                  // Macro to execute for each incoming message
+  'timeout' 10000                // Polling timeout (in ms), if no message is received within this delay, the macro will be called with an empty map as input
+}
+```
+
 Once loaded, this specification will trigger the consumption of the specified Kafka topics. You should set the `groupid` in the `config` map. For each received message, the macro specified in `macro` will be called, preserving the execution environment (stack) between calls. The message is pushed onto the stack prior to calling the macro. It is pushed as a map with the following fields:
 
 ```

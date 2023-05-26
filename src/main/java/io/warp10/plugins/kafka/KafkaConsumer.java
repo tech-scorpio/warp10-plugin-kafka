@@ -1,5 +1,5 @@
 //
-//   Copyright 2019  SenX S.A.S.
+//   Copyright 2019-2023  SenX S.A.S.
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -16,21 +16,10 @@
 
 package io.warp10.plugins.kafka;
 
-import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.nio.file.Path;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
-
+import com.google.common.base.Charsets;
+import io.warp10.script.MemoryWarpScriptStack;
+import io.warp10.script.WarpScriptStack.Macro;
+import io.warp10.warp.sdk.AbstractWarp10Plugin;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -38,60 +27,66 @@ import org.apache.kafka.common.header.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Charsets;
-
-import io.warp10.script.MemoryWarpScriptStack;
-import io.warp10.script.WarpScriptStack.Macro;
-import io.warp10.warp.sdk.AbstractWarp10Plugin;
+import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 
 public class KafkaConsumer {
 
   public static final String ATTR_CONSUMER = "kafka.consumer";
   public static final String ATTR_SEQNO = "kafka.seqno";
-  
+
   private static final String PARAM_MACRO = "macro";
   private static final String PARAM_TOPICS = "topics";
   private static final String PARAM_PARALLELISM = "parallelism";
   private static final String PARAM_TIMEOUT = "timeout";
   private static final String PARAM_CONFIG = "config";
-  
+
   private static final Logger LOG = LoggerFactory.getLogger(KafkaConsumer.class);
 
   private final AtomicReference<Macro> macro = new AtomicReference<Macro>(null);
   private AtomicLong timeout = new AtomicLong(Long.MAX_VALUE);
-  
+
   private final AtomicBoolean done = new AtomicBoolean(false);
 
   private String warpscript;
   private Thread[] executors;
   private MemoryWarpScriptStack stack;
-  
+
   public KafkaConsumer(Path p) throws Exception {
     LOG.info("INITIALIZING KafkaConsumer " + p);
     //
     // Read content of mc2 file
     //
-    
+
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     InputStream in = new FileInputStream(p.toFile());
     byte[] buf = new byte[8192];
-    
+
     try {
-      while(true) {
+      while (true) {
         int len = in.read(buf);
         if (len < 0) {
           break;
         }
         baos.write(buf, 0, len);
-      }      
+      }
     } finally {
       in.close();
     }
-    
+
     this.warpscript = new String(baos.toByteArray(), Charsets.UTF_8);
     this.stack = new MemoryWarpScriptStack(null, null, new Properties());
     stack.maxLimits();
-    
+
     try {
       stack.execMulti(this.warpscript);
     } catch (Throwable t) {
@@ -99,86 +94,112 @@ public class KafkaConsumer {
     }
 
     Object top = stack.pop();
-    
+
     if (!(top instanceof Map)) {
       throw new RuntimeException("Kafka consumer spec must leave a configuration map on top of the stack.");
     }
-    
-    Map<Object,Object> config = (Map<Object,Object>) top;
-    
+
+    Map<Object, Object> config = (Map<Object, Object>) top;
+
     //
     // Extract parameters
     //
-    
+
     this.macro.set((Macro) config.get(PARAM_MACRO));
-    List<Object> kafkatopics = (List<Object>) config.get(PARAM_TOPICS);
-    
+
+    // Hable topics
     final List<String> topics = new ArrayList<String>();
-    
-    for (Object ktopic: kafkatopics) {
-      if (!(ktopic instanceof String)) {
-        throw new RuntimeException("Invalid Kafka topic, MUST be a STRING.");
+    List<Object> kafkatopics = null;
+    String regexp = null;
+
+    Object kafkaTopicsParam = config.get(PARAM_TOPICS);
+
+    if (kafkaTopicsParam instanceof List) {
+      // If it is a list of Strings
+      kafkatopics = (List<Object>) config.get(PARAM_TOPICS);
+      for (Object ktopic : kafkatopics) {
+        if (!(ktopic instanceof String)) {
+          throw new RuntimeException("Invalid Kafka topic, MUST be a STRING.");
+        }
+        topics.add(ktopic.toString());
       }
-      topics.add(ktopic.toString());
+    } else if (kafkaTopicsParam instanceof String) {
+      // If it is a Regexp
+      String topic = (String) kafkaTopicsParam;
+      if (topic.startsWith("=") || topic.startsWith("~")) {
+        regexp = topic.substring(1);
+      } else {
+        // Single topic name
+        topics.add(topic);
+      }
+    } else {
+      throw new RuntimeException("Invalid Kafka topic, MUST be a STRING or a List of thereof.");
     }
-    
-    Map<Object,Object> kafkaconfig = (Map<Object,Object>) config.get(PARAM_CONFIG);
-    
+
+    Map<Object, Object> kafkaconfig = (Map<Object, Object>) config.get(PARAM_CONFIG);
+
     final Properties configs = new Properties();
-    
-    for (Entry<Object,Object> entry: kafkaconfig.entrySet()) {
+
+    for (Entry<Object, Object> entry : kafkaconfig.entrySet()) {
       if (!(entry.getKey() instanceof String) || !(entry.getValue() instanceof String)) {
         throw new RuntimeException("Invalid Kafka configuration, key and value MUST be STRINGs.");
       }
       configs.put(entry.getKey().toString(), entry.getValue().toString());
     }
-    
+
     //
     // Force key/value deserializers
     //
-    
+
     configs.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName());
     configs.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName());
-    
+
     int parallelism = Integer.parseInt(null != config.get(PARAM_PARALLELISM) ? String.valueOf(config.get(PARAM_PARALLELISM)) : "1");
 
     if (config.containsKey(PARAM_TIMEOUT)) {
       this.timeout.set(Long.parseLong(String.valueOf(config.get(PARAM_TIMEOUT))));
     }
-      
+
     //
     // Create the actual consuming threads
     //
-    
-    this.executors = new Thread[parallelism];    
-    
+
+    this.executors = new Thread[parallelism];
+
     for (int i = 0; i < parallelism; i++) {
       final MemoryWarpScriptStack stck = new MemoryWarpScriptStack(AbstractWarp10Plugin.getExposedStoreClient(), AbstractWarp10Plugin.getExposedDirectoryClient(), new Properties());
       stck.maxLimits();
-      
+
       //
       // Store the thread index in a stack attribute
       //
-      
+
       stck.setAttribute(ATTR_SEQNO, i);
 
-      Thread t = new Thread() {
+        String finalRegexp = regexp;
+        Thread t = new Thread() {
         @Override
         public void run() {
           org.apache.kafka.clients.consumer.KafkaConsumer<byte[], byte[]> consumer = null;
-          while(true) {
+          while (true) {
             try {
-              consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<byte[],byte[]>(configs);              
-              consumer.subscribe(topics);
-      
+              consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<byte[], byte[]>(configs);
+              if(!topics.isEmpty()) {
+                  // subscribes to a list of topics
+                  consumer.subscribe(topics);
+              } else if(null != finalRegexp) {
+                  // subscribes to a regular expression
+                  consumer.subscribe(Pattern.compile(finalRegexp));
+              }
+
               stck.setAttribute(ATTR_CONSUMER, consumer);
-              
-              while(!done.get()) {
+
+              while (!done.get()) {
                 ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofMillis(timeout.get()));
                 long count = 0;
-                for (ConsumerRecord<byte[],byte[]> record: records) {
+                for (ConsumerRecord<byte[], byte[]> record : records) {
                   count++;
-                  Map<String,Object> map = new HashMap<String,Object>();
+                  Map<String, Object> map = new HashMap<String, Object>();
                   map.put("timestamp", record.timestamp());
                   map.put("timestampType", record.timestampType().name());
                   map.put("topic", record.topic());
@@ -186,8 +207,8 @@ public class KafkaConsumer {
                   map.put("partition", (long) record.partition());
                   map.put("key", record.key());
                   map.put("value", record.value());
-                  Map<String,byte[]> headers = new HashMap<String,byte[]>();
-                  for (Header header: record.headers()) {
+                  Map<String, byte[]> headers = new HashMap<String, byte[]>();
+                  for (Header header : record.headers()) {
                     headers.put(header.key(), header.value());
                   }
                   map.put("headers", headers);
@@ -198,7 +219,7 @@ public class KafkaConsumer {
                 // If no records were received, emit an empty map and call the macro
                 //
                 if (0 == count) {
-                  stck.push(new HashMap<String,Object>());
+                  stck.push(new HashMap<String, Object>());
                   stck.exec(macro.get());
                 }
               }
@@ -207,7 +228,10 @@ public class KafkaConsumer {
               LOG.error("Kafka Consumer caught exception ", e);
             } finally {
               if (null != consumer) {
-                try { consumer.close(); } catch (Exception e) {}
+                try {
+                  consumer.close();
+                } catch (Exception e) {
+                }
               }
             }
           }
@@ -218,11 +242,11 @@ public class KafkaConsumer {
       // We need to set the class loader to the one that was used to load
       // the current class as it might be a specific class loader created by Warp 10
       //
-      
-      t.setContextClassLoader(this.getClass().getClassLoader());      
+
+      t.setContextClassLoader(this.getClass().getClassLoader());
       t.setName("Kafka Consumer Thread #" + i + " " + topics.toString());
       t.setDaemon(true);
-      
+
       this.executors[i] = t;
       t.start();
     }
@@ -231,7 +255,7 @@ public class KafkaConsumer {
   public void end() {
     this.done.set(true);
     try {
-      for (Thread t: this.executors) {
+      for (Thread t : this.executors) {
         t.interrupt();
       }
     } catch (Exception e) {
