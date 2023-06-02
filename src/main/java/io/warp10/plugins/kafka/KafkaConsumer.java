@@ -125,13 +125,7 @@ public class KafkaConsumer {
       }
     } else if (kafkaTopicsParam instanceof String) {
       // If it is a Regexp
-      String topic = (String) kafkaTopicsParam;
-      if (topic.startsWith("=") || topic.startsWith("~")) {
-        regexp = topic.substring(1);
-      } else {
-        // Single topic name
-        topics.add(topic);
-      }
+      regexp = (String) kafkaTopicsParam;
     } else {
       throw new RuntimeException("Invalid Kafka topic, MUST be a STRING or a List of thereof.");
     }
@@ -176,20 +170,20 @@ public class KafkaConsumer {
 
       stck.setAttribute(ATTR_SEQNO, i);
 
-        String finalRegexp = regexp;
-        Thread t = new Thread() {
+      String finalRegexp = regexp;
+      Thread t = new Thread() {
         @Override
         public void run() {
           org.apache.kafka.clients.consumer.KafkaConsumer<byte[], byte[]> consumer = null;
           while (true) {
             try {
               consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<byte[], byte[]>(configs);
-              if(!topics.isEmpty()) {
-                  // subscribes to a list of topics
-                  consumer.subscribe(topics);
-              } else if(null != finalRegexp) {
-                  // subscribes to a regular expression
-                  consumer.subscribe(Pattern.compile(finalRegexp));
+              if (!topics.isEmpty()) {
+                // subscribes to a list of topics
+                consumer.subscribe(topics);
+              } else if (null != finalRegexp) {
+                // subscribes to a regular expression
+                consumer.subscribe(Pattern.compile(finalRegexp));
               }
 
               stck.setAttribute(ATTR_CONSUMER, consumer);
