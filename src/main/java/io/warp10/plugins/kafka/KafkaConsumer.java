@@ -172,6 +172,7 @@ public class KafkaConsumer {
 
       String finalRegexp = regexp;
       Thread t = new Thread() {
+
         @Override
         public void run() {
           org.apache.kafka.clients.consumer.KafkaConsumer<byte[], byte[]> consumer = null;
