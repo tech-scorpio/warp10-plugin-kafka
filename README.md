@@ -6,11 +6,28 @@ The Warp 10 Kafka Plugin allows your Warp 10 instance to consume messages from a
 
 ## Using WarpFleet
 
-```
-wf g -d CONFDIR -l LIBDIR io.warp10 warp10-plugin-kafka
+
+`build.gradle`
+```groovy
+buildscript {
+    repositories {
+        mavenCentral()
+        mavenLocal()
+    }
+    dependencies {
+        classpath 'io.warp10:warpfleet-gradle-plugin:0.0.3'
+    }
+}
+
+apply plugin: 'io.warp10.warpfleet-gradle-plugin'
+
+warpfleet {
+    packages = 'io.warp10:warp10-plugin-kafka'
+    warp10Dir = W10DIR
+}
 ```
 
-Where `CONFDIR` is the configuration directory of your Warp 10 instance (or use `-c CONFFILE` with a release prior to 2.1), and `LIBDIR` the lib directory where the downloaded jar file should be copied.
+Where `W10DIR` is the root directory of your Warp 10 instance.
 
 ## From source
 
