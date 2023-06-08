@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 public class KafkaConsumer {
 
@@ -107,17 +108,17 @@ public class KafkaConsumer {
 
     this.macro.set((Macro) config.get(PARAM_MACRO));
 
-    // Hable topics
+    // Get topics
     final List<String> topics = new ArrayList<String>();
     List<Object> kafkatopics = null;
-    String regexp = null;
+    Pattern pattern = null;
 
     Object kafkaTopicsParam = config.get(PARAM_TOPICS);
 
     if (kafkaTopicsParam instanceof List) {
       // If it is a list of Strings
       kafkatopics = (List<Object>) config.get(PARAM_TOPICS);
-      for (Object ktopic : kafkatopics) {
+      for (Object ktopic: kafkatopics) {
         if (!(ktopic instanceof String)) {
           throw new RuntimeException("Invalid Kafka topic, MUST be a STRING.");
         }
@@ -125,7 +126,11 @@ public class KafkaConsumer {
       }
     } else if (kafkaTopicsParam instanceof String) {
       // If it is a Regexp
-      regexp = (String) kafkaTopicsParam;
+      try {
+        pattern = Pattern.compile((String) kafkaTopicsParam);
+      } catch (PatternSyntaxException e) {
+        throw new RuntimeException("Invalid Kafka topic regexp: " + e.getMessage());
+      }
     } else {
       throw new RuntimeException("Invalid Kafka topic, MUST be a STRING or a List of thereof.");
     }
@@ -134,7 +139,7 @@ public class KafkaConsumer {
 
     final Properties configs = new Properties();
 
-    for (Entry<Object, Object> entry : kafkaconfig.entrySet()) {
+    for (Entry<Object, Object> entry: kafkaconfig.entrySet()) {
       if (!(entry.getKey() instanceof String) || !(entry.getValue() instanceof String)) {
         throw new RuntimeException("Invalid Kafka configuration, key and value MUST be STRINGs.");
       }
@@ -148,7 +153,7 @@ public class KafkaConsumer {
     configs.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName());
     configs.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName());
 
-    int parallelism = Integer.parseInt(null != config.get(PARAM_PARALLELISM) ? String.valueOf(config.get(PARAM_PARALLELISM)) : "1");
+    int parallelism = Integer.parseInt(null != config.get(PARAM_PARALLELISM)? String.valueOf(config.get(PARAM_PARALLELISM)): "1");
 
     if (config.containsKey(PARAM_TIMEOUT)) {
       this.timeout.set(Long.parseLong(String.valueOf(config.get(PARAM_TIMEOUT))));
@@ -169,8 +174,7 @@ public class KafkaConsumer {
       //
 
       stck.setAttribute(ATTR_SEQNO, i);
-
-      String finalRegexp = regexp;
+      Pattern finalPattern = pattern;
       Thread t = new Thread() {
 
         @Override
@@ -182,9 +186,9 @@ public class KafkaConsumer {
               if (!topics.isEmpty()) {
                 // subscribes to a list of topics
                 consumer.subscribe(topics);
-              } else if (null != finalRegexp) {
+              } else if (null != finalPattern) {
                 // subscribes to a regular expression
-                consumer.subscribe(Pattern.compile(finalRegexp));
+                consumer.subscribe(finalPattern);
               }
 
               stck.setAttribute(ATTR_CONSUMER, consumer);
@@ -192,7 +196,7 @@ public class KafkaConsumer {
               while (!done.get()) {
                 ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofMillis(timeout.get()));
                 long count = 0;
-                for (ConsumerRecord<byte[], byte[]> record : records) {
+                for (ConsumerRecord<byte[], byte[]> record: records) {
                   count++;
                   Map<String, Object> map = new HashMap<String, Object>();
                   map.put("timestamp", record.timestamp());
@@ -203,7 +207,7 @@ public class KafkaConsumer {
                   map.put("key", record.key());
                   map.put("value", record.value());
                   Map<String, byte[]> headers = new HashMap<String, byte[]>();
-                  for (Header header : record.headers()) {
+                  for (Header header: record.headers()) {
                     headers.put(header.key(), header.value());
                   }
                   map.put("headers", headers);
@@ -250,7 +254,7 @@ public class KafkaConsumer {
   public void end() {
     this.done.set(true);
     try {
-      for (Thread t : this.executors) {
+      for (Thread t: this.executors) {
         t.interrupt();
       }
     } catch (Exception e) {
