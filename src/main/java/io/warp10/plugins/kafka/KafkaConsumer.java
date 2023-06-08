@@ -132,7 +132,7 @@ public class KafkaConsumer {
         throw new RuntimeException("Invalid Kafka topic regexp: " + e.getMessage());
       }
     } else {
-      throw new RuntimeException("Invalid Kafka topic, MUST be a STRING or a List of thereof.");
+      throw new RuntimeException("Invalid Kafka topic, MUST be a STRING or a List thereof.");
     }
 
     Map<Object, Object> kafkaconfig = (Map<Object, Object>) config.get(PARAM_CONFIG);
