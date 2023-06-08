@@ -106,7 +106,7 @@ public class KafkaWarp10Plugin extends AbstractWarp10Plugin implements Runnable 
         Set<String> removed = new HashSet<String>(this.consumers.keySet());
         removed.removeAll(specs);
 
-        for (String spec : removed) {
+        for (String spec: removed) {
           try {
             consumers.remove(spec).end();
           } catch (Exception e) {
@@ -181,7 +181,7 @@ public class KafkaWarp10Plugin extends AbstractWarp10Plugin implements Runnable 
             done = true;
             System.out.println("Kafka Plugin shutting down all consumers.");
             this.interrupt();
-            for (KafkaConsumer consumer : consumers.values()) {
+            for (KafkaConsumer consumer: consumers.values()) {
               try {
                 consumer.end();
               } catch (Exception e) {
