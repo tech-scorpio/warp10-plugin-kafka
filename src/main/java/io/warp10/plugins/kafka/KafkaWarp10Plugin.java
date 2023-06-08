@@ -16,20 +16,17 @@
 
 package io.warp10.plugins.kafka;
 
+import io.warp10.script.WarpScriptLib;
+import io.warp10.script.functions.CHECKREV;
+import io.warp10.warp.sdk.AbstractWarp10Plugin;
+
 import java.io.File;
+import java.lang.reflect.Method;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.locks.LockSupport;
-
-import io.warp10.script.WarpScriptLib;
-import io.warp10.warp.sdk.AbstractWarp10Plugin;
 
 public class KafkaWarp10Plugin extends AbstractWarp10Plugin implements Runnable {
 
@@ -37,55 +34,55 @@ public class KafkaWarp10Plugin extends AbstractWarp10Plugin implements Runnable 
    * Directory where spec files are located
    */
   private static final String CONF_KAFKA_DIR = "kafka.dir";
-  
+
   /**
    * Period at which to scan the spec directory
    */
-  private static final String CONF_KAFKA_PERIOD = "kafka.period";  
+  private static final String CONF_KAFKA_PERIOD = "kafka.period";
 
   /**
    * Default scanning period in ms
    */
   private static final long DEFAULT_PERIOD = 60000L;
-  
+
   private String dir;
   private long period;
 
   /**
    * Map of spec file to KafkaConsumer instance
    */
-  private Map<String,KafkaConsumer> consumers = new HashMap<String,KafkaConsumer>();
-  
+  private Map<String, KafkaConsumer> consumers = new HashMap<String, KafkaConsumer>();
+
   private boolean done = false;
-  
+
   public KafkaWarp10Plugin() {
-    super();    
+    super();
   }
 
   @Override
   public void run() {
-    while(true) {
+    while (true) {
       DirectoryStream<Path> pathes = null;
-      
+
       try {
-        
+
         if (done) {
           return;
         }
-        
+
         pathes = Files.newDirectoryStream(new File(dir).toPath(), "*.mc2");
-        
+
         Iterator<Path> iter = pathes.iterator();
-        
+
         Set<String> specs = new HashSet<String>();
-        
+
         while (iter.hasNext()) {
           Path p = iter.next();
-          
+
           String filename = p.getFileName().toString();
-          
+
           boolean load = false;
-          
+
           if (this.consumers.containsKey(filename)) {
             if (this.consumers.get(filename).getWarpScript().length() != p.toFile().length()) {
               load = true;
@@ -94,26 +91,26 @@ public class KafkaWarp10Plugin extends AbstractWarp10Plugin implements Runnable 
             // This is a new spec
             load = true;
           }
-          
+
           if (load) {
             load(filename);
           }
           specs.add(filename);
         }
-        
+
         pathes.close();
-        
+
         //
         // Clean the specs which disappeared
         //
-        
+
         Set<String> removed = new HashSet<String>(this.consumers.keySet());
         removed.removeAll(specs);
-        
-        for (String spec: removed) {
+
+        for (String spec : removed) {
           try {
             consumers.remove(spec).end();
-          } catch (Exception e) {              
+          } catch (Exception e) {
           }
         }
       } catch (Throwable t) {
@@ -122,83 +119,97 @@ public class KafkaWarp10Plugin extends AbstractWarp10Plugin implements Runnable 
         if (null != pathes) {
           try {
             pathes.close();
-          } catch (Exception e) {            
+          } catch (Exception e) {
           }
         }
       }
-      
+
       LockSupport.parkNanos(this.period * 1000000L);
     }
   }
-  
+
   /**
    * Load a spec file
+   *
    * @param filename
    */
   private boolean load(String filename) {
-    
+
     //
     // Stop the current KafkaConsumer if it exists
     //
-    
+
     KafkaConsumer consumer = consumers.get(filename);
-    
+
     if (null != consumer) {
       consumer.end();
     }
-    
+
     try {
       consumer = new KafkaConsumer(new File(this.dir, filename).toPath());
     } catch (Exception e) {
       e.printStackTrace();
       return false;
     }
-    
+
     consumers.put(filename, consumer);
-    
+
     return true;
   }
-  
+
   @Override
   public void init(Properties properties) {
-    this.dir = properties.getProperty(CONF_KAFKA_DIR);
-    
-    if (null == this.dir) {
-      throw new RuntimeException("Missing '" + CONF_KAFKA_DIR + "' configuration.");
-    }
-    
-    this.period = Long.parseLong(properties.getProperty(CONF_KAFKA_PERIOD, Long.toString(DEFAULT_PERIOD)));
-    
-    //
-    // Register shutdown hook
-    //
-    
-    Runtime.getRuntime().addShutdownHook(new Thread() {
-      @Override
-      public void run() {
-        done = true;
-        System.out.println("Kafka Plugin shutting down all consumers.");
-        this.interrupt();
-        for (KafkaConsumer consumer: consumers.values()) {
-          try {
-            consumer.end();
-          } catch (Exception e) {            
-          }
+    try {
+      Class<?> clazz = Class.forName("io.warp10.script.functions.CHECKREV");
+      Method method = clazz.getMethod("checkRev", String.class);
+      int rev = (int) method.invoke(null, new Object[] { "3.0.0" });
+      if (rev >= 0) {
+        this.dir = properties.getProperty(CONF_KAFKA_DIR);
+
+        if (null == this.dir) {
+          throw new RuntimeException("Missing '" + CONF_KAFKA_DIR + "' configuration.");
         }
+
+        this.period = Long.parseLong(properties.getProperty(CONF_KAFKA_PERIOD, Long.toString(DEFAULT_PERIOD)));
+
+        //
+        // Register shutdown hook
+        //
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+          @Override
+          public void run() {
+            done = true;
+            System.out.println("Kafka Plugin shutting down all consumers.");
+            this.interrupt();
+            for (KafkaConsumer consumer : consumers.values()) {
+              try {
+                consumer.end();
+              } catch (Exception e) {
+              }
+            }
+          }
+        });
+
+        Thread t = new Thread(this);
+        t.setDaemon(true);
+        t.setName("[Warp 10 Kafka Plugin " + this.dir + "]");
+
+        //
+        // Add the KCOMMIT function
+        //
+
+        WarpScriptLib.addNamedWarpScriptFunction(new KCOMMIT("KCOMMIT"));
+
+        t.start();
+      } else {
+        throw new RuntimeException("Kafka Plugin not compatible with your Warp 10 version.");
       }
-    });
-    
-    Thread t = new Thread(this);
-    t.setDaemon(true);
-    t.setName("[Warp 10 Kafka Plugin " + this.dir + "]");
-    
-    //
-    // Add the KCOMMIT function
-    //
-    
-    WarpScriptLib.addNamedWarpScriptFunction(new KCOMMIT("KCOMMIT"));
-    
-    t.start();
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("Kafka Plugin not compatible with your Warp 10 version.");
+    } catch (Throwable e) {
+      throw new RuntimeException(e);
+    }
   }
 
 
