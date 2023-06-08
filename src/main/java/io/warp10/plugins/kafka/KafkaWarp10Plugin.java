@@ -17,7 +17,6 @@
 package io.warp10.plugins.kafka;
 
 import io.warp10.script.WarpScriptLib;
-import io.warp10.script.functions.CHECKREV;
 import io.warp10.warp.sdk.AbstractWarp10Plugin;
 
 import java.io.File;
