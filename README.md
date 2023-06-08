@@ -23,11 +23,11 @@ apply plugin: 'io.warp10.warpfleet-gradle-plugin'
 
 warpfleet {
     packages = 'io.warp10:warp10-plugin-kafka'
-    warp10Dir = W10DIR
+    warp10Dir = WARP10_HOME
 }
 ```
 
-Where `W10DIR` is the root directory of your Warp 10 instance.
+Where `WARP10_HOME` is the root directory of your Warp 10 instance.
 
 ## From source
 
@@ -61,7 +61,7 @@ With regexp:
 
 ```
 {
-  'topics'  '~topic(1-9).*'      // Regexp corresponding to Kafka topics to subscribe to
+  'topics'  'topic(1-9).*'       // Regexp corresponding to Kafka topics to subscribe to
   'parallelism' 1                // Number of threads to start for processing the incoming messages. Each thread will handle a certain number of partitions.
   'config' { }                   // Map of Kafka consumer parameters
   'macro' <% %>                  // Macro to execute for each incoming message
@@ -73,14 +73,14 @@ Once loaded, this specification will trigger the consumption of the specified Ka
 
 ```
 {
-  'timestamp' 123        // The record timestamp
-  'timestampType' 'type' // The type of timestamp, can be one of 'NoTimestampType', 'CreateTime', 'LogAppendTime'
-  'topic' 'topic_name'   // Name of the topic which received the message
-  'offset' 123           // Offset of the message in 'topic'
-  'partition' 123        // Id of the partition which received the message
-  'key' ...              // Byte array of the message key
-  'value' ...            // Byte array of the message value
-  'headers' { }          // Map of message headers
+  'timestamp' 123           // The record timestamp
+  'timestampType' 'type'    // The type of timestamp, can be one of 'NoTimestampType', 'CreateTime', 'LogAppendTime'
+  'topic' [ 'topic_name' ]  // Name of the topic which received the message
+  'offset' 123              // Offset of the message in 'topic'
+  'partition' 123           // Id of the partition which received the message
+  'key' ...                 // Byte array of the message key
+  'value' ...               // Byte array of the message value
+  'headers' { }             // Map of message headers
 }
 ```
 
