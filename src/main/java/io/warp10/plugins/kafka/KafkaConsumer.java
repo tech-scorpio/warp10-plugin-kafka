@@ -233,7 +233,11 @@ public class KafkaConsumer {
                                 &&(logPeriodInSeconds==0 ||
                                         logPeriodInSeconds>0&&((end/1000)%logPeriodInSeconds==0))) {
                                         topicsAsString = topicsAsString.substring(1);
-                                        LOG.info("{}-{} ({}) : batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, messages.size(), executionTimeInMs);
+                                        if(logPeriodInSeconds>0) {
+                                            LOG.info("{}-{} ({}) :(every {} sec) batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString,logPeriodInSeconds, messages.size(), executionTimeInMs);
+                                        }else{
+                                            LOG.info("{}-{} ({}) : batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, messages.size(), executionTimeInMs);
+                                        }
                                 }
                                 //
                                 // If no records were received, emit an empty map and call the macro
