@@ -186,7 +186,7 @@ public class KafkaConsumer {
                         try {
                             Properties properties = new Properties(configs);
                             properties.put("client.id",clientId);
-                            //properties.put("group.instance.id",groupInstanceId);
+                            properties.put("group.instance.id",groupInstanceId);
                             consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<byte[], byte[]>(configs);
                             if (!topics.isEmpty()) {
                                 // subscribes to a list of topics

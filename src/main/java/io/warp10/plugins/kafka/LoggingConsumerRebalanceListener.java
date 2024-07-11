@@ -13,14 +13,14 @@ public class LoggingConsumerRebalanceListener implements org.apache.kafka.client
     @Override
     public void onPartitionsRevoked(Collection<TopicPartition> collection) {
         if (LOG.isWarnEnabled()) {
-            LOG.warn("partitions revoked : {}", describe(collection));
+            LOG.warn("rebalance ! partitions revoked : {}", describe(collection));
         }
     }
 
     @Override
     public void onPartitionsAssigned(Collection<TopicPartition> collection) {
         if (LOG.isInfoEnabled()) {
-            LOG.info("partitions assigned : {}", describe(collection));
+            LOG.info("rebalance ! partitions assigned : {}", describe(collection));
         }
     }
 
@@ -28,7 +28,7 @@ public class LoggingConsumerRebalanceListener implements org.apache.kafka.client
     public void onPartitionsLost(Collection<TopicPartition> partitions) {
         org.apache.kafka.clients.consumer.ConsumerRebalanceListener.super.onPartitionsLost(partitions);
         if (LOG.isWarnEnabled()) {
-            LOG.warn("partitions lost : {}", describe(partitions));
+            LOG.warn("rebalance ! partitions lost : {}", describe(partitions));
         }
     }
 
