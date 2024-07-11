@@ -110,7 +110,7 @@ public class KafkaConsumer {
 
         // Get topics
         final List<String> topics = new ArrayList<String>();
-        List<Object> kafkatopics = null;
+        List<Object> kafkatopics;
         Pattern pattern = null;
 
         Object kafkaTopicsParam = config.get(PARAM_TOPICS);
@@ -176,6 +176,7 @@ public class KafkaConsumer {
             stck.setAttribute(ATTR_SEQNO, i);
             Pattern finalPattern = pattern;
             String clientId = i+"#"+UUID.randomUUID();
+            String groupId= (String) configs.get("group.id");
             String groupInstanceId=""+i;
             Thread t = new Thread() {
 
@@ -187,7 +188,7 @@ public class KafkaConsumer {
                             Properties properties = new Properties(configs);
                             properties.put("client.id",clientId);
                             properties.put("group.instance.id",groupInstanceId);
-                            consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<byte[], byte[]>(configs);
+                            consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<>(configs);
                             if (!topics.isEmpty()) {
                                 // subscribes to a list of topics
                                 consumer.subscribe(topics,new LoggingConsumerRebalanceListener());
@@ -202,6 +203,7 @@ public class KafkaConsumer {
                                 ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofMillis(timeout.get()));
                                 long count = 0;
                                 List<Map<String, Object>> messages = new ArrayList<>();
+                                Set<String> topics = new HashSet<>();
                                 for (ConsumerRecord<byte[], byte[]> record : records) {
                                     count++;
                                     Map<String, Object> map = new HashMap<String, Object>();
@@ -212,19 +214,24 @@ public class KafkaConsumer {
                                     map.put("partition", (long) record.partition());
                                     map.put("key", record.key());
                                     map.put("value", record.value());
-                                    Map<String, byte[]> headers = new HashMap<String, byte[]>();
+                                    Map<String, byte[]> headers = new HashMap<>();
                                     for (Header header : record.headers()) {
                                         headers.put(header.key(), header.value());
                                     }
                                     map.put("headers", headers);
                                     messages.add(map);
+                                    topics.add(record.topic());
                                 }
                                 stck.push(messages);
                                 long start = System.currentTimeMillis();
                                 stck.exec(macro.get());
                                 long end = System.currentTimeMillis();
                                 long executionTimeInMs = (end-start);
-                                LOG.info("{} : batchSize:{}, executionTime: {} ms",groupInstanceId,messages.size(),executionTimeInMs);
+                                String topicsAsString=topics.stream().reduce("",(l,r)->l+","+r);
+                                if(LOG.isInfoEnabled()&&!messages.isEmpty()) {
+                                    topicsAsString =topicsAsString.substring(1);
+                                    LOG.info("{}-{} ({}) : batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, messages.size(), executionTimeInMs);
+                                }
                                 //
                                 // If no records were received, emit an empty map and call the macro
                                 //
