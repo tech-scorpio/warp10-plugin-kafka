@@ -220,7 +220,11 @@ public class KafkaConsumer {
                                     messages.add(map);
                                 }
                                 stck.push(messages);
+                                long start = System.currentTimeMillis();
                                 stck.exec(macro.get());
+                                long end = System.currentTimeMillis();
+                                long executionTimeInMs = (end-start);
+                                LOG.info("{} : batchSize:{}, executionTime: {} ms",groupInstanceId,messages.size(),executionTimeInMs);
                                 //
                                 // If no records were received, emit an empty map and call the macro
                                 //
