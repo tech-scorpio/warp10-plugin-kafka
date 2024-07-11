@@ -48,6 +48,7 @@ public class KafkaConsumer {
     private static final String PARAM_MACRO = "macro";
     private static final String PARAM_TOPICS = "topics";
     private static final String PARAM_PARALLELISM = "parallelism";
+    private static final String LOG_PERIOD_IN_SECONDS = "logperiod";
     private static final String PARAM_TIMEOUT = "timeout";
     private static final String PARAM_CONFIG = "config";
 
@@ -154,7 +155,7 @@ public class KafkaConsumer {
         configs.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName());
 
         int parallelism = Integer.parseInt(null != config.get(PARAM_PARALLELISM) ? String.valueOf(config.get(PARAM_PARALLELISM)) : "1");
-
+        int logPeriodInSeconds = Integer.parseInt(null != config.get(LOG_PERIOD_IN_SECONDS) ? String.valueOf(config.get(LOG_PERIOD_IN_SECONDS)) : "0");
         if (config.containsKey(PARAM_TIMEOUT)) {
             this.timeout.set(Long.parseLong(String.valueOf(config.get(PARAM_TIMEOUT))));
         }
@@ -191,10 +192,10 @@ public class KafkaConsumer {
                             consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<>(configs);
                             if (!topics.isEmpty()) {
                                 // subscribes to a list of topics
-                                consumer.subscribe(topics,new LoggingConsumerRebalanceListener());
+                                consumer.subscribe(topics,new LoggingConsumerRebalanceListener(consumer));
                             } else if (null != finalPattern) {
                                 // subscribes to a regular expression
-                                consumer.subscribe(finalPattern,new LoggingConsumerRebalanceListener());
+                                consumer.subscribe(finalPattern,new LoggingConsumerRebalanceListener(consumer));
                             }
 
                             stck.setAttribute(ATTR_CONSUMER, consumer);
@@ -228,9 +229,11 @@ public class KafkaConsumer {
                                 long end = System.currentTimeMillis();
                                 long executionTimeInMs = (end-start);
                                 String topicsAsString=topics.stream().reduce("",(l,r)->l+","+r);
-                                if(LOG.isInfoEnabled()&&!messages.isEmpty()) {
-                                    topicsAsString =topicsAsString.substring(1);
-                                    LOG.info("{}-{} ({}) : batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, messages.size(), executionTimeInMs);
+                                if(LOG.isInfoEnabled()&&!messages.isEmpty()
+                                &&(logPeriodInSeconds==0 ||
+                                        logPeriodInSeconds>0&&((end/1000)%logPeriodInSeconds==0))) {
+                                        topicsAsString = topicsAsString.substring(1);
+                                        LOG.info("{}-{} ({}) : batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, messages.size(), executionTimeInMs);
                                 }
                                 //
                                 // If no records were received, emit an empty map and call the macro
@@ -239,6 +242,7 @@ public class KafkaConsumer {
                                     stck.push(new ArrayList<>());
                                     stck.exec(macro.get());
                                 }
+                                consumer.commitAsync();
                             }
                         } catch (Exception e) {
                             e.printStackTrace();
