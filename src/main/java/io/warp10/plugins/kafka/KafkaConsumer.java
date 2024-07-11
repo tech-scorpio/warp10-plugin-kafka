@@ -32,12 +32,8 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -179,6 +175,8 @@ public class KafkaConsumer {
 
             stck.setAttribute(ATTR_SEQNO, i);
             Pattern finalPattern = pattern;
+            String clientId = i+"#"+UUID.randomUUID();
+            String groupInstanceId=""+i;
             Thread t = new Thread() {
 
                 @Override
@@ -186,13 +184,16 @@ public class KafkaConsumer {
                     org.apache.kafka.clients.consumer.KafkaConsumer<byte[], byte[]> consumer = null;
                     while (true) {
                         try {
+                            Properties properties = new Properties(configs);
+                            properties.put("client.id",clientId);
+                            //properties.put("group.instance.id",groupInstanceId);
                             consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<byte[], byte[]>(configs);
                             if (!topics.isEmpty()) {
                                 // subscribes to a list of topics
-                                consumer.subscribe(topics);
+                                consumer.subscribe(topics,new LoggingConsumerRebalanceListener());
                             } else if (null != finalPattern) {
                                 // subscribes to a regular expression
-                                consumer.subscribe(finalPattern);
+                                consumer.subscribe(finalPattern,new LoggingConsumerRebalanceListener());
                             }
 
                             stck.setAttribute(ATTR_CONSUMER, consumer);
