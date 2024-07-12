@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
 
 import static io.warp10.plugins.kafka.KafkaConsumer.ATTR_CONSUMER;
 
-public class InternalKafkaConsumer implements Runnable{
+public class InternalKafkaConsumer implements Runnable {
 
     private static final Logger LOG = LoggerFactory.getLogger(InternalKafkaConsumer.class);
     private final Properties configs;
@@ -42,7 +42,7 @@ public class InternalKafkaConsumer implements Runnable{
                                  AtomicLong timeout,
                                  int logPeriodInSeconds,
                                  AtomicReference<WarpScriptStack.Macro> macro,
-                                  AtomicBoolean done) {
+                                 AtomicBoolean done) {
         this.configs = configs;
         this.groupId = groupId;
         this.clientId = clientId;
@@ -62,15 +62,15 @@ public class InternalKafkaConsumer implements Runnable{
         while (true) {
             try {
                 Properties properties = new Properties(configs);
-                properties.put("client.id",clientId);
-                properties.put("group.instance.id",groupInstanceId);
+                properties.put("client.id", clientId);
+                properties.put("group.instance.id", groupInstanceId);
                 consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<>(configs);
                 if (!topics.isEmpty()) {
                     // subscribes to a list of topics
-                    consumer.subscribe(topics,new LoggingConsumerRebalanceListener(consumer));
+                    consumer.subscribe(topics, new LoggingConsumerRebalanceListener(consumer));
                 } else if (null != finalPattern) {
                     // subscribes to a regular expression
-                    consumer.subscribe(finalPattern,new LoggingConsumerRebalanceListener(consumer));
+                    consumer.subscribe(finalPattern, new LoggingConsumerRebalanceListener(consumer));
                 }
 
                 stck.setAttribute(ATTR_CONSUMER, consumer);
@@ -100,15 +100,15 @@ public class InternalKafkaConsumer implements Runnable{
                     long start = System.currentTimeMillis();
                     stck.exec(macro.get());
                     long end = System.currentTimeMillis();
-                    long executionTimeInMs = (end-start);
-                    String topicsAsString=topics.stream().reduce("",(l,r)->l+","+r);
-                    if(LOG.isInfoEnabled()&&!messages.isEmpty()
-                            &&(logPeriodInSeconds==0 ||
-                            logPeriodInSeconds>0&&((end/1000)%logPeriodInSeconds==0))) {
+                    long executionTimeInMs = (end - start);
+                    String topicsAsString = topics.stream().reduce("", (l, r) -> l + "," + r);
+                    if (LOG.isInfoEnabled() && !messages.isEmpty()
+                            && (logPeriodInSeconds == 0 ||
+                            logPeriodInSeconds > 0 && ((end / 1000) % logPeriodInSeconds == 0))) {
                         topicsAsString = topicsAsString.substring(1);
-                        if(logPeriodInSeconds>0) {
-                            LOG.info("{}-{} ({}) :(every {} sec) batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString,logPeriodInSeconds, messages.size(), executionTimeInMs);
-                        }else{
+                        if (logPeriodInSeconds > 0) {
+                            LOG.info("{}-{} ({}) :(every {} sec) batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, logPeriodInSeconds, messages.size(), executionTimeInMs);
+                        } else {
                             LOG.info("{}-{} ({}) : batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, messages.size(), executionTimeInMs);
                         }
                     }
