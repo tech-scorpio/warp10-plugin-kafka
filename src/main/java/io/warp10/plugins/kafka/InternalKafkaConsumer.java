@@ -96,23 +96,24 @@ public class InternalKafkaConsumer implements Runnable {
                         messages.add(map);
                         topics.add(record.topic());
                     }
-                    stck.push(messages);
-                    long start = System.currentTimeMillis();
-                    stck.exec(macro.get());
-                    long end = System.currentTimeMillis();
-                    long executionTimeInMs = (end - start);
-                    String topicsAsString = topics.stream().reduce("", (l, r) -> l + "," + r);
-                    if (LOG.isInfoEnabled() && !messages.isEmpty()
-                            && (logPeriodInSeconds == 0 ||
-                            logPeriodInSeconds > 0 && ((end / 1000) % logPeriodInSeconds == 0))) {
-                        topicsAsString = topicsAsString.substring(1);
-                        if (logPeriodInSeconds > 0) {
-                            LOG.info("{}-{} ({}) :(every {} sec) batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, logPeriodInSeconds, messages.size(), executionTimeInMs);
-                        } else {
-                            LOG.info("{}-{} ({}) : batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, messages.size(), executionTimeInMs);
+                    if(!messages.isEmpty()) {
+                        stck.push(messages);
+                        long start = System.currentTimeMillis();
+                        stck.exec(macro.get());
+                        long end = System.currentTimeMillis();
+                        long executionTimeInMs = (end - start);
+                        String topicsAsString = topics.stream().reduce("", (l, r) -> l + "," + r);
+                        if (LOG.isInfoEnabled() && !messages.isEmpty()
+                                && (logPeriodInSeconds == 0 ||
+                                logPeriodInSeconds > 0 && ((end / 1000) % logPeriodInSeconds == 0))) {
+                            topicsAsString = topicsAsString.substring(1);
+                            if (logPeriodInSeconds > 0) {
+                                LOG.info("{}-{} ({}) :(every {} sec) batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, logPeriodInSeconds, messages.size(), executionTimeInMs);
+                            } else {
+                                LOG.info("{}-{} ({}) : batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, messages.size(), executionTimeInMs);
+                            }
                         }
                     }
-
                     consumer.commitAsync();
                 }
             } catch (Exception e) {
