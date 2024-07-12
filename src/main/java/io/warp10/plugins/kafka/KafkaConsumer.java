@@ -178,9 +178,9 @@ public class KafkaConsumer {
             //
 
             stck.setAttribute(ATTR_SEQNO, i);
-            String clientId = i+"#"+UUID.randomUUID();
-            String groupId= (String) configs.get("group.id");
-            String groupInstanceId=""+i;
+            String clientId = i + "#" + UUID.randomUUID();
+            String groupId = (String) configs.get("group.id");
+            String groupInstanceId = "" + i;
 
             executorService.submit(new InternalKafkaConsumer(
                     configs,
