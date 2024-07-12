@@ -63,7 +63,6 @@ public class KafkaConsumer {
     private final AtomicBoolean done = new AtomicBoolean(false);
 
     private String warpscript;
-    private Thread[] executors;
     private MemoryWarpScriptStack stack;
     private ExecutorService executorService;
 
