@@ -34,6 +34,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -62,6 +64,7 @@ public class KafkaConsumer {
     private String warpscript;
     private Thread[] executors;
     private MemoryWarpScriptStack stack;
+    private ExecutorService executorService;
 
     public KafkaConsumer(Path p) throws Exception {
         LOG.info("INITIALIZING KafkaConsumer " + p);
@@ -164,8 +167,7 @@ public class KafkaConsumer {
         // Create the actual consuming threads
         //
 
-        this.executors = new Thread[parallelism];
-
+        executorService = Executors.newFixedThreadPool(parallelism);
         for (int i = 0; i < parallelism; i++) {
             final MemoryWarpScriptStack stck = new MemoryWarpScriptStack(AbstractWarp10Plugin.getExposedStoreClient(), AbstractWarp10Plugin.getExposedDirectoryClient(), new Properties());
             stck.maxLimits();
@@ -179,112 +181,26 @@ public class KafkaConsumer {
             String clientId = i+"#"+UUID.randomUUID();
             String groupId= (String) configs.get("group.id");
             String groupInstanceId=""+i;
-            Thread t = new Thread() {
 
-                @Override
-                public void run() {
-                    org.apache.kafka.clients.consumer.KafkaConsumer<byte[], byte[]> consumer = null;
-                    while (true) {
-                        try {
-                            Properties properties = new Properties(configs);
-                            properties.put("client.id",clientId);
-                            properties.put("group.instance.id",groupInstanceId);
-                            consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<>(configs);
-                            if (!topics.isEmpty()) {
-                                // subscribes to a list of topics
-                                consumer.subscribe(topics,new LoggingConsumerRebalanceListener(consumer));
-                            } else if (null != finalPattern) {
-                                // subscribes to a regular expression
-                                consumer.subscribe(finalPattern,new LoggingConsumerRebalanceListener(consumer));
-                            }
+            executorService.submit(new InternalKafkaConsumer(
+                    configs,
+                    groupId,
+                    clientId,
+                    groupInstanceId,
+                    topics,
+                    finalPattern,
+                    stack,
+                    timeout,
+                    logPeriodInSeconds,
+                    macro
+            ));
 
-                            stck.setAttribute(ATTR_CONSUMER, consumer);
-
-                            while (!done.get()) {
-                                ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofMillis(timeout.get()));
-                                long count = 0;
-                                List<Map<String, Object>> messages = new ArrayList<>();
-                                Set<String> topics = new HashSet<>();
-                                for (ConsumerRecord<byte[], byte[]> record : records) {
-                                    count++;
-                                    Map<String, Object> map = new HashMap<String, Object>();
-                                    map.put("timestamp", record.timestamp());
-                                    map.put("timestampType", record.timestampType().name());
-                                    map.put("topic", record.topic());
-                                    map.put("offset", record.offset());
-                                    map.put("partition", (long) record.partition());
-                                    map.put("key", record.key());
-                                    map.put("value", record.value());
-                                    Map<String, byte[]> headers = new HashMap<>();
-                                    for (Header header : record.headers()) {
-                                        headers.put(header.key(), header.value());
-                                    }
-                                    map.put("headers", headers);
-                                    messages.add(map);
-                                    topics.add(record.topic());
-                                }
-                                stck.push(messages);
-                                long start = System.currentTimeMillis();
-                                stck.exec(macro.get());
-                                long end = System.currentTimeMillis();
-                                long executionTimeInMs = (end-start);
-                                String topicsAsString=topics.stream().reduce("",(l,r)->l+","+r);
-                                if(LOG.isInfoEnabled()&&!messages.isEmpty()
-                                &&(logPeriodInSeconds==0 ||
-                                        logPeriodInSeconds>0&&((end/1000)%logPeriodInSeconds==0))) {
-                                        topicsAsString = topicsAsString.substring(1);
-                                        if(logPeriodInSeconds>0) {
-                                            LOG.info("{}-{} ({}) :(every {} sec) batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString,logPeriodInSeconds, messages.size(), executionTimeInMs);
-                                        }else{
-                                            LOG.info("{}-{} ({}) : batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, messages.size(), executionTimeInMs);
-                                        }
-                                }
-                                //
-                                // If no records were received, emit an empty map and call the macro
-                                //
-                                if (0 == count) {
-                                    stck.push(new ArrayList<>());
-                                    stck.exec(macro.get());
-                                }
-                                consumer.commitAsync();
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            LOG.error("Kafka Consumer caught exception ", e);
-                        } finally {
-                            if (null != consumer) {
-                                try {
-                                    consumer.close();
-                                } catch (Exception e) {
-                                }
-                            }
-                        }
-                    }
-                }
-            };
-
-            //
-            // We need to set the class loader to the one that was used to load
-            // the current class as it might be a specific class loader created by Warp 10
-            //
-
-            t.setContextClassLoader(this.getClass().getClassLoader());
-            t.setName("Kafka Consumer Thread #" + i + " " + topics.toString());
-            t.setDaemon(true);
-
-            this.executors[i] = t;
-            t.start();
         }
     }
 
     public void end() {
         this.done.set(true);
-        try {
-            for (Thread t : this.executors) {
-                t.interrupt();
-            }
-        } catch (Exception e) {
-        }
+
     }
 
     public String getWarpScript() {
