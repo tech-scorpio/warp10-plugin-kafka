@@ -177,7 +177,6 @@ public class KafkaConsumer {
             //
 
             stck.setAttribute(ATTR_SEQNO, i);
-            Pattern finalPattern = pattern;
             String clientId = i+"#"+UUID.randomUUID();
             String groupId= (String) configs.get("group.id");
             String groupInstanceId=""+i;
@@ -188,7 +187,7 @@ public class KafkaConsumer {
                     clientId,
                     groupInstanceId,
                     topics,
-                    finalPattern,
+                    pattern,
                     stack,
                     timeout,
                     logPeriodInSeconds,
@@ -200,6 +199,7 @@ public class KafkaConsumer {
 
     public void end() {
         this.done.set(true);
+        executorService.shutdownNow();
 
     }
 
