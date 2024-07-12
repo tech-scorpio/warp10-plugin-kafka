@@ -169,14 +169,14 @@ public class KafkaConsumer {
 
         executorService = Executors.newFixedThreadPool(parallelism);
         for (int i = 0; i < parallelism; i++) {
-            final MemoryWarpScriptStack stck = new MemoryWarpScriptStack(AbstractWarp10Plugin.getExposedStoreClient(), AbstractWarp10Plugin.getExposedDirectoryClient(), new Properties());
-            stck.maxLimits();
+            final MemoryWarpScriptStack threadStack = new MemoryWarpScriptStack(AbstractWarp10Plugin.getExposedStoreClient(), AbstractWarp10Plugin.getExposedDirectoryClient(), new Properties());
+            threadStack.maxLimits();
 
             //
             // Store the thread index in a stack attribute
             //
 
-            stck.setAttribute(ATTR_SEQNO, i);
+            threadStack.setAttribute(ATTR_SEQNO, i);
             String clientId = i + "#" + UUID.randomUUID();
             String groupId = (String) configs.get("group.id");
             String groupInstanceId = "" + i;
@@ -188,7 +188,7 @@ public class KafkaConsumer {
                     groupInstanceId,
                     topics,
                     pattern,
-                    stack,
+                    threadStack,
                     timeout,
                     logPeriodInSeconds,
                     macro,
