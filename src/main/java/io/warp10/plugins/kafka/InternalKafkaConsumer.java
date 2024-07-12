@@ -112,6 +112,13 @@ public class InternalKafkaConsumer implements Runnable {
                             LOG.info("{}-{} ({}) : batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, messages.size(), executionTimeInMs);
                         }
                     }
+                    //
+                    // If no records were received, emit an empty map and call the macro
+                    //
+                    if (records.isEmpty()) {
+                        stck.push(new ArrayList<>());
+                        stck.exec(macro.get());
+                    }
 
                     consumer.commitAsync();
                 }
