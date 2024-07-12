@@ -75,11 +75,9 @@ public class InternalKafkaConsumer implements Runnable{
 
                 while (!done.get()) {
                     ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofMillis(timeout.get()));
-                    long count = 0;
                     List<Map<String, Object>> messages = new ArrayList<>();
                     Set<String> topics = new HashSet<>();
                     for (ConsumerRecord<byte[], byte[]> record : records) {
-                        count++;
                         Map<String, Object> map = new HashMap<>();
                         map.put("timestamp", record.timestamp());
                         map.put("timestampType", record.timestampType().name());
@@ -112,13 +110,7 @@ public class InternalKafkaConsumer implements Runnable{
                             LOG.info("{}-{} ({}) : batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, messages.size(), executionTimeInMs);
                         }
                     }
-                    //
-                    // If no records were received, emit an empty map and call the macro
-                    //
-                    if (0 == count) {
-                        stck.push(new ArrayList<>());
-                        stck.exec(macro.get());
-                    }
+
                     consumer.commitAsync();
                 }
             } catch (Exception e) {
