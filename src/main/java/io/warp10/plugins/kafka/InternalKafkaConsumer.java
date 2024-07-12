@@ -59,7 +59,7 @@ public class InternalKafkaConsumer implements Runnable {
     @Override
     public void run() {
         org.apache.kafka.clients.consumer.KafkaConsumer<byte[], byte[]> consumer = null;
-        while (true) {
+        while (!done.get()) {
             try {
                 Properties properties = new Properties(configs);
                 properties.put("client.id", clientId);
@@ -116,7 +116,6 @@ public class InternalKafkaConsumer implements Runnable {
                     consumer.commitAsync();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
                 LOG.error("Kafka Consumer caught exception ", e);
             } finally {
                 if (null != consumer) {
