@@ -192,7 +192,8 @@ public class KafkaConsumer {
                     stack,
                     timeout,
                     logPeriodInSeconds,
-                    macro
+                    macro,
+                    done
             ));
 
         }

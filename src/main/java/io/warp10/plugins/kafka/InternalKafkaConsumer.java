@@ -30,7 +30,7 @@ public class InternalKafkaConsumer implements Runnable{
     private final AtomicLong timeout;
     private final int logPeriodInSeconds;
     private final AtomicReference<WarpScriptStack.Macro> macro;
-    private final AtomicBoolean done = new AtomicBoolean(false);
+    private final AtomicBoolean done;
 
     public InternalKafkaConsumer(Properties configs,
                                  String groupId,
@@ -41,7 +41,8 @@ public class InternalKafkaConsumer implements Runnable{
                                  MemoryWarpScriptStack stack,
                                  AtomicLong timeout,
                                  int logPeriodInSeconds,
-                                 AtomicReference<WarpScriptStack.Macro> macro) {
+                                 AtomicReference<WarpScriptStack.Macro> macro,
+                                  AtomicBoolean done) {
         this.configs = configs;
         this.groupId = groupId;
         this.clientId = clientId;
@@ -52,6 +53,7 @@ public class InternalKafkaConsumer implements Runnable{
         this.timeout = timeout;
         this.logPeriodInSeconds = logPeriodInSeconds;
         this.macro = macro;
+        this.done = done;
     }
 
     @Override
