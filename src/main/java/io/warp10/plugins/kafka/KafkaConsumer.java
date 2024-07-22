@@ -21,9 +21,6 @@ import io.warp10.script.MemoryWarpScriptStack;
 import io.warp10.script.WarpScriptStack.Macro;
 import io.warp10.warp.sdk.AbstractWarp10Plugin;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.common.header.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,9 +28,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -158,7 +158,7 @@ public class KafkaConsumer {
         configs.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName());
 
         int parallelism = Integer.parseInt(null != config.get(PARAM_PARALLELISM) ? String.valueOf(config.get(PARAM_PARALLELISM)) : "1");
-        int logPeriodInSeconds = Integer.parseInt(null != config.get(LOG_PERIOD_IN_SECONDS) ? String.valueOf(config.get(LOG_PERIOD_IN_SECONDS)) : "0");
+        int logPeriodInSeconds = Integer.parseInt(null != config.get(LOG_PERIOD_IN_SECONDS) ? String.valueOf(config.get(LOG_PERIOD_IN_SECONDS)) : "60");
         if (config.containsKey(PARAM_TIMEOUT)) {
             this.timeout.set(Long.parseLong(String.valueOf(config.get(PARAM_TIMEOUT))));
         }

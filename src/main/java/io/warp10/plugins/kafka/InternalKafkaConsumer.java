@@ -9,7 +9,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -74,6 +80,7 @@ public class InternalKafkaConsumer implements Runnable {
                 }
 
                 stck.setAttribute(ATTR_CONSUMER, consumer);
+                LOG.warn("Kafka Consumer creation {} ", groupId);
 
                 while (!done.get()) {
                     ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofMillis(timeout.get()));
@@ -109,10 +116,12 @@ public class InternalKafkaConsumer implements Runnable {
                             topicsAsString = topicsAsString.substring(1);
                             if (logPeriodInSeconds > 0) {
                                 LOG.info("{}-{} ({}) :(every {} sec) batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, logPeriodInSeconds, messages.size(), executionTimeInMs);
+                                LOG.info("Stack size {}", stck.depth());
                             } else {
                                 LOG.info("{}-{} ({}) : batchSize:{}, executionTime: {} ms", groupId, groupInstanceId, topicsAsString, messages.size(), executionTimeInMs);
                             }
                         }
+                        stck.clear();
                     }
                     consumer.commitAsync();
                 }
@@ -123,6 +132,8 @@ public class InternalKafkaConsumer implements Runnable {
                     try {
                         consumer.close();
                     } catch (Exception e) {
+                        e.printStackTrace();
+                        LOG.error("Kafka Consumer close exception ", e);
                     }
                 }
             }
