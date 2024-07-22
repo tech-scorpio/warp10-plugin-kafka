@@ -132,7 +132,6 @@ public class InternalKafkaConsumer implements Runnable {
                     try {
                         consumer.close();
                     } catch (Exception e) {
-                        e.printStackTrace();
                         LOG.error("Kafka Consumer close exception ", e);
                     }
                 }

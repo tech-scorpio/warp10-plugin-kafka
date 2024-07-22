@@ -158,7 +158,7 @@ public class KafkaConsumer {
         configs.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName());
 
         int parallelism = Integer.parseInt(null != config.get(PARAM_PARALLELISM) ? String.valueOf(config.get(PARAM_PARALLELISM)) : "1");
-        int logPeriodInSeconds = Integer.parseInt(null != config.get(LOG_PERIOD_IN_SECONDS) ? String.valueOf(config.get(LOG_PERIOD_IN_SECONDS)) : "60");
+        int logPeriodInSeconds = Integer.parseInt(null != config.get(LOG_PERIOD_IN_SECONDS) ? String.valueOf(config.get(LOG_PERIOD_IN_SECONDS)) : "0");
         if (config.containsKey(PARAM_TIMEOUT)) {
             this.timeout.set(Long.parseLong(String.valueOf(config.get(PARAM_TIMEOUT))));
         }
